@@ -141,22 +141,48 @@ public class QryEval {
 			}
 			queryReader.close();
 		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println(usage);
+			System.exit(1);
+		}
+
+		RetrievalModel r = null;
+		String retrievalModel = params.get("retrievalAlgorithm");
+		try {
+			Class<?> c = Class.forName("RetrievalModel" + retrievalModel);
+			r = (RetrievalModel) c.newInstance();
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.err.println(usage);
+			System.exit(1);
+		}
+
+		String outputFile = params.get("trecEvalOutputPath");
+		try {
+			PrintWriter writer = new PrintWriter(new FileWriter(outputFile));
+			for (String query : queries) {
+				for (String entry : outputEntry(query, r)) {
+					writer.println(entry);
+				}
+			}
+			writer.close();
+		} catch (IOException e) {
 			System.err.println(usage);
 			System.exit(1);
 		}
 
 		// A one-word query.
-		printResults("pea", (new QryopSlScore(new QryopIlTerm(
-				tokenizeQuery("pea")[0]))).evaluate(model));
+		// printResults("pea", (new QryopSlScore(new QryopIlTerm(
+		// tokenizeQuery("pea")[0]))).evaluate(model));
 
 		// A more complex query.
-		printResults("#AND (aparagus broccoli cauliflower #SYN(peapods peas))",
-				(new QryopSlAnd(new QryopIlTerm(tokenizeQuery("asparagus")[0]),
-						new QryopIlTerm(tokenizeQuery("broccoli")[0]),
-						new QryopIlTerm(tokenizeQuery("cauliflower")[0]),
-						new QryopIlSyn(new QryopIlTerm(
-								tokenizeQuery("peapods")[0]), new QryopIlTerm(
-								tokenizeQuery("peas")[0])))).evaluate(model));
+		// printResults("#AND (aparagus broccoli cauliflower #SYN(peapods peas))",
+		// (new QryopSlAnd(new QryopIlTerm(tokenizeQuery("asparagus")[0]),
+		// new QryopIlTerm(tokenizeQuery("broccoli")[0]),
+		// new QryopIlTerm(tokenizeQuery("cauliflower")[0]),
+		// new QryopIlSyn(new QryopIlTerm(
+		// tokenizeQuery("peapods")[0]), new QryopIlTerm(
+		// tokenizeQuery("peas")[0])))).evaluate(model));
 
 		// A different way to create the previous query. This doesn't use
 		// a stack, but it may make it easier to see how you would parse a
@@ -169,8 +195,8 @@ public class QryEval {
 		op2.add(new QryopIlTerm(tokenizeQuery("peapods")[0]));
 		op2.add(new QryopIlTerm(tokenizeQuery("peas")[0]));
 		op1.add(op2);
-		printResults("#AND (aparagus broccoli cauliflower #SYN(peapods peas))",
-				op1.evaluate(model));
+		// printResults("#AND (aparagus broccoli cauliflower #SYN(peapods peas))",
+		// op1.evaluate(model));
 
 		// Using the example query parser. Notice that this does no
 		// lexical processing of query terms. Add that to the query
@@ -178,7 +204,7 @@ public class QryEval {
 		Qryop qTree;
 		String query = new String("#AND(apple pie)");
 		qTree = parseQuery(query);
-		printResults(query, qTree.evaluate(model));
+		// printResults(query, qTree.evaluate(model));
 
 		/*
 		 * Create the trec_eval output. Your code should write to the file
@@ -283,9 +309,9 @@ public class QryEval {
 
 		qString = qString.trim();
 
-		if (qString.charAt(0) != '#') {
-			qString = "#or(" + qString + ")";
-		}
+		// if (qString.charAt(0) != '#') {
+		qString = "#or(" + qString + ")";
+		// }
 
 		// Tokenize the query.
 
@@ -300,7 +326,6 @@ public class QryEval {
 		while (tokens.hasMoreTokens()) {
 
 			token = tokens.nextToken();
-
 			if (token.matches("[ ,(\t\n\r]")) {
 				// Ignore most delimiters.
 			} else if (token.equalsIgnoreCase("#and")) {
@@ -309,8 +334,20 @@ public class QryEval {
 			} else if (token.equalsIgnoreCase("#syn")) {
 				currentOp = new QryopIlSyn();
 				stack.push(currentOp);
+			} else if (token.equalsIgnoreCase("#or")) {
+				currentOp = new QryopSlOr();
+				stack.push(currentOp);
+			} else if (token.startsWith("#near") || token.startsWith("#NEAR")) {
+				String[] temp = token.split("/");
+				if (temp.length < 2) {
+					System.err.println("Wrong operator usage");
+					return null;
+				}
+				currentOp = new QryopIlNear(Integer.parseInt(temp[1]));
+				stack.push(currentOp);
 			} else if (token.startsWith(")")) { // Finish current query
-												// operator.
+
+				// operator.
 				// If the current query operator is not an argument to
 				// another query operator (i.e., the stack is empty when it
 				// is removed), we're done (assuming correct syntax - see
@@ -331,8 +368,21 @@ public class QryEval {
 				// NOTE: You should do lexical processing of the token before
 				// creating the query term, and you should check to see whether
 				// the token specifies a particular field (e.g., apple.title).
+				int index = token.lastIndexOf('.');
+				if (index != -1 && token.substring(index + 1).length() > 0) {
+					String field = token.substring(index + 1);
+					currentOp.add(new QryopIlTerm(tokenizeQuery(token)[0],
+							field));
 
-				currentOp.add(new QryopIlTerm(token));
+				} else {
+					String[] tokenized = tokenizeQuery(token);
+					/*
+					 * For words such as "in the", ignore them
+					 */
+					if (tokenized.length > 0) {
+						currentOp.add(new QryopIlTerm(tokenizeQuery(token)[0]));
+					} 
+				}
 			}
 		}
 
@@ -346,6 +396,53 @@ public class QryEval {
 		}
 
 		return currentOp;
+	}
+
+	public static List<String> outputEntry(String query, RetrievalModel r) {
+		List<String> entries = new ArrayList<String>();
+
+		String[] s = query.split(":");
+		try {
+			QryResult result = parseQuery(s[1]).evaluate(r);
+			Collections
+					.sort(result.docScores.scores, new ScoreListComparator());
+
+			if (result.docScores.scores.size() == 0) {
+				StringBuilder entry = new StringBuilder();
+				entry.append(s[0]);
+				entry.append('\t');
+				entry.append("Q0");
+				entry.append('\t');
+				entry.append("dummy");
+				entry.append('\t');
+				entry.append("1" + '\t' + '0' + '\t' + "Run_1");
+
+				entries.add(entry.toString());
+			}
+			for (int i = 0; i < result.docScores.scores.size(); i++) {
+				StringBuilder entry = new StringBuilder();
+				entry.append(s[0]);
+				entry.append('\t');
+				entry.append("Q0");
+				entry.append('\t');
+				entry.append(getExternalDocid(result.docScores.getDocid(i)));
+				entry.append('\t');
+				entry.append(String.valueOf(i + 1));
+				entry.append('\t');
+				entry.append(result.docScores.getDocidScore(i));
+				entry.append('\t');
+				entry.append("Run_1");
+
+				entries.add(entry.toString());
+
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return entries;
+
 	}
 
 	/**
@@ -427,5 +524,25 @@ public class QryEval {
 			tokens.add(term);
 		}
 		return tokens.toArray(new String[tokens.size()]);
+	}
+
+	public static class ScoreListComparator implements
+			Comparator<ScoreList.ScoreListEntry> {
+
+		@Override
+		public int compare(ScoreList.ScoreListEntry arg0,
+				ScoreList.ScoreListEntry arg1) {
+			if (arg0.score - arg1.score != 0) {
+				return (int) (arg1.score - arg0.score);
+			} else {
+				try {
+					return getExternalDocid(arg0.docid).compareTo(
+							getExternalDocid(arg1.docid));
+				} catch (IOException e) {
+					return 0;
+				}
+			}
+		}
+
 	}
 }

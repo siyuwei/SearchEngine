@@ -22,6 +22,7 @@ public class InvList {
 
 		public int docid = 0;
 		public int tf = 0;
+		public int position = 0;
 		public Vector<Integer> positions = new Vector<Integer>();
 
 		public DocPosting(int d, int... locations) {

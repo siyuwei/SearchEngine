@@ -14,40 +14,46 @@ import java.util.*;
 
 public abstract class QryopSl extends Qryop {
 
-  /**
-   *  Use the specified retrieval model to evaluate the query arguments.
-   *  Define and return ArgPtrs that the query operator can use.
-   *  @param r A retrieval model that controls how the operator behaves.
-   *  @return void
-   *  @throws IOException
-   */
-  public void allocArgPtrs (RetrievalModel r) throws IOException {
+	/**
+	 * Use the specified retrieval model to evaluate the query arguments. Define
+	 * and return ArgPtrs that the query operator can use.
+	 * 
+	 * @param r
+	 *            A retrieval model that controls how the operator behaves.
+	 * @return void
+	 * @throws IOException
+	 */
+	public void allocArgPtrs(RetrievalModel r) throws IOException {
 
-    for (int i=0; i<this.args.size(); i++) {
+		for (int i = 0; i < this.args.size(); i++) {
 
-      //  If this argument doesn't return ScoreLists, wrap it
-      //  in a #SCORE operator.
+			// If this argument doesn't return ScoreLists, wrap it
+			// in a #SCORE operator.
 
-      if (! QryopSl.class.isInstance (this.args.get(i)))
-	this.args.set(i, new QryopSlScore(this.args.get(i)));
+			if (!QryopSl.class.isInstance(this.args.get(i)))
+				this.args.set(i, new QryopSlScore(this.args.get(i)));
 
-      ArgPtr ptri = new ArgPtr ();
-      ptri.invList = null;
-      ptri.scoreList = this.args.get(i).evaluate(r).docScores;
-      ptri.nextDoc = 0;
-	
-      this.argPtrs.add (ptri);
-    }
-  }
+			ArgPtr ptri = new ArgPtr();
+			ptri.invList = null;
+			ptri.scoreList = this.args.get(i).evaluate(r).docScores;
+			ptri.nextDoc = 0;
 
-  /*
-   *  Calculate the default score for the specified document if it
-   *  does not match the query operator.  This score is 0 for many
-   *  retrieval models, but not all retrieval models.
-   *  @param r A retrieval model that controls how the operator behaves.
-   *  @param docid The internal id of the document that needs a default score.
-   *  @return The default score.
-   */
-  public abstract double getDefaultScore (RetrievalModel r, long docid) throws IOException;
+			this.argPtrs.add(ptri);
+		}
+	}
+
+	/*
+	 * Calculate the default score for the specified document if it does not
+	 * match the query operator. This score is 0 for many retrieval models, but
+	 * not all retrieval models.
+	 * 
+	 * @param r A retrieval model that controls how the operator behaves.
+	 * 
+	 * @param docid The internal id of the document that needs a default score.
+	 * 
+	 * @return The default score.
+	 */
+	public abstract double getDefaultScore(RetrievalModel r, long docid)
+			throws IOException;
 
 }
