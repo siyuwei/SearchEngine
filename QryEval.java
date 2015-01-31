@@ -171,18 +171,7 @@ public class QryEval {
 			System.exit(1);
 		}
 
-		// A one-word query.
-		// printResults("pea", (new QryopSlScore(new QryopIlTerm(
-		// tokenizeQuery("pea")[0]))).evaluate(model));
-
-		// A more complex query.
-		// printResults("#AND (aparagus broccoli cauliflower #SYN(peapods peas))",
-		// (new QryopSlAnd(new QryopIlTerm(tokenizeQuery("asparagus")[0]),
-		// new QryopIlTerm(tokenizeQuery("broccoli")[0]),
-		// new QryopIlTerm(tokenizeQuery("cauliflower")[0]),
-		// new QryopIlSyn(new QryopIlTerm(
-		// tokenizeQuery("peapods")[0]), new QryopIlTerm(
-		// tokenizeQuery("peas")[0])))).evaluate(model));
+		
 
 		// A different way to create the previous query. This doesn't use
 		// a stack, but it may make it easier to see how you would parse a
@@ -212,23 +201,12 @@ public class QryEval {
 		 * you retrieved above. This code just allows the testing infrastructure
 		 * to work on QryEval.
 		 */
-		BufferedWriter writer = null;
+		// BufferedWriter writer = null;
 
-		try {
-			writer = new BufferedWriter(new FileWriter(new File("teval.in")));
+		// try {
+		// writer = new BufferedWriter(new FileWriter(new File("teval.in")));
 
-			writer.write("1 Q0 clueweb09-enwp01-75-20596 1 1.0 run-1");
-			writer.write("1 Q0 clueweb09-enwp01-58-04573 2 0.9 run-1");
-			writer.write("1 Q0 clueweb09-enwp01-24-11888 3 0.8 run-1");
-			writer.write("2 Q0 clueweb09-enwp00-70-20490 1 0.9 run-1");
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				writer.close();
-			} catch (Exception e) {
-			}
-		}
+		
 
 		// Later HW assignments will use more RAM, so you want to be aware
 		// of how much memory your program uses.
@@ -381,7 +359,7 @@ public class QryEval {
 					 */
 					if (tokenized.length > 0) {
 						currentOp.add(new QryopIlTerm(tokenizeQuery(token)[0]));
-					} 
+					}
 				}
 			}
 		}
@@ -410,27 +388,27 @@ public class QryEval {
 			if (result.docScores.scores.size() == 0) {
 				StringBuilder entry = new StringBuilder();
 				entry.append(s[0]);
-				entry.append('\t');
+				entry.append(' ');
 				entry.append("Q0");
-				entry.append('\t');
+				entry.append(' ');
 				entry.append("dummy");
-				entry.append('\t');
-				entry.append("1" + '\t' + '0' + '\t' + "Run_1");
+				entry.append(' ');
+				entry.append("1" + ' ' + '0' + ' ' + "Run_1");
 
 				entries.add(entry.toString());
 			}
-			for (int i = 0; i < result.docScores.scores.size(); i++) {
+			for (int i = 0; i < Math.min(result.docScores.scores.size(), 100); i++) {
 				StringBuilder entry = new StringBuilder();
 				entry.append(s[0]);
-				entry.append('\t');
+				entry.append(' ');
 				entry.append("Q0");
-				entry.append('\t');
+				entry.append(' ');
 				entry.append(getExternalDocid(result.docScores.getDocid(i)));
-				entry.append('\t');
+				entry.append(' ');
 				entry.append(String.valueOf(i + 1));
-				entry.append('\t');
+				entry.append(' ');
 				entry.append(result.docScores.getDocidScore(i));
-				entry.append('\t');
+				entry.append(' ');
 				entry.append("Run_1");
 
 				entries.add(entry.toString());
