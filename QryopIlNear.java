@@ -53,7 +53,6 @@ public class QryopIlNear extends QryopIl {
 				}
 			}
 			List<Integer> locations = new ArrayList<Integer>();
-			System.out.println("near matched" + first.invList.postings.get(first.nextDoc).docid);
 			// all doc ids matched, look for #NEAR match
 			nearEvaluate: 
 			for (int firstPosition : first.invList.postings
@@ -81,7 +80,6 @@ public class QryopIlNear extends QryopIl {
 				/*
 				 * A near is successfully matched
 				 */
-				System.out.println("found");
 				locations.add(last);
 			}
 			if (locations.size() > 0) {

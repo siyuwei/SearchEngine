@@ -51,6 +51,8 @@ public class QryEval {
 	 */
 	public static void main(String[] args) throws Exception {
 
+		long start = System.currentTimeMillis();
+
 		// must supply parameter file
 		if (args.length < 1) {
 			System.err.println(usage);
@@ -83,26 +85,6 @@ public class QryEval {
 			System.err.println(usage);
 			System.exit(1);
 		}
-
-		DocLengthStore s = new DocLengthStore(READER);
-
-		RetrievalModel model = new RetrievalModelUnrankedBoolean();
-
-		/*
-		 * The code below is an unorganized set of examples that show you
-		 * different ways of accessing the index. Some of these are only useful
-		 * in HW2 or HW3.
-		 */
-
-		// Lookup the document length of the body field of doc 0.
-		System.out.println(s.getDocLength("body", 0));
-
-		// How to use the term vector.
-		TermVector tv = new TermVector(1, "body");
-		System.out.println(tv.stemString(10)); // get the string for the 10th
-												// stem
-		System.out.println(tv.stemDf(10)); // get its df
-		System.out.println(tv.totalStemFreq(10)); // get its ctf
 
 		/**
 		 * The index is open. Start evaluating queries. The examples below show
@@ -171,47 +153,20 @@ public class QryEval {
 			System.exit(1);
 		}
 
-		
-
-		// A different way to create the previous query. This doesn't use
-		// a stack, but it may make it easier to see how you would parse a
-		// query with a stack-based architecture.
-		Qryop op1 = new QryopSlAnd();
-		op1.add(new QryopIlTerm(tokenizeQuery("asparagus")[0]));
-		op1.add(new QryopIlTerm(tokenizeQuery("broccoli")[0]));
-		op1.add(new QryopIlTerm(tokenizeQuery("cauliflower")[0]));
-		Qryop op2 = new QryopIlSyn();
-		op2.add(new QryopIlTerm(tokenizeQuery("peapods")[0]));
-		op2.add(new QryopIlTerm(tokenizeQuery("peas")[0]));
-		op1.add(op2);
-		// printResults("#AND (aparagus broccoli cauliflower #SYN(peapods peas))",
-		// op1.evaluate(model));
-
-		// Using the example query parser. Notice that this does no
-		// lexical processing of query terms. Add that to the query
-		// parser.
-		Qryop qTree;
-		String query = new String("#AND(apple pie)");
-		qTree = parseQuery(query);
-		// printResults(query, qTree.evaluate(model));
-
 		/*
 		 * Create the trec_eval output. Your code should write to the file
 		 * specified in the parameter file, and it should write the results that
 		 * you retrieved above. This code just allows the testing infrastructure
 		 * to work on QryEval.
 		 */
-		// BufferedWriter writer = null;
-
-		// try {
-		// writer = new BufferedWriter(new FileWriter(new File("teval.in")));
-
-		
 
 		// Later HW assignments will use more RAM, so you want to be aware
 		// of how much memory your program uses.
 
 		printMemoryUsage(false);
+
+		System.out.println("time: " + (System.currentTimeMillis() - start)
+				/ 1000);
 
 	}
 
@@ -349,6 +304,7 @@ public class QryEval {
 				int index = token.lastIndexOf('.');
 				if (index != -1 && token.substring(index + 1).length() > 0) {
 					String field = token.substring(index + 1);
+					token = token.substring(0, index);
 					currentOp.add(new QryopIlTerm(tokenizeQuery(token)[0],
 							field));
 
