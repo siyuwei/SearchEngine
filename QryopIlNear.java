@@ -54,8 +54,7 @@ public class QryopIlNear extends QryopIl {
 			}
 			List<Integer> locations = new ArrayList<Integer>();
 			// all doc ids matched, look for #NEAR match
-			nearEvaluate: 
-			for (int firstPosition : first.invList.postings
+			nearEvaluate: for (int firstPosition : first.invList.postings
 					.get(first.nextDoc).positions) {
 				int last = firstPosition;
 				for (int j = 1; j < argPtrs.size(); j++) {
@@ -87,6 +86,7 @@ public class QryopIlNear extends QryopIl {
 			}
 		}
 		freeArgPtrs();
+		result.invertedList.field = first.invList.field;
 		return result;
 
 	}
@@ -110,7 +110,6 @@ public class QryopIlNear extends QryopIl {
 	 * @return True if the syntax is valid, false otherwise.
 	 */
 	public Boolean syntaxCheckArgResults(List<ArgPtr> ptrs) {
-
 		for (int i = 0; i < this.args.size(); i++) {
 
 			if (!(this.args.get(i) instanceof QryopIl))
@@ -118,9 +117,10 @@ public class QryopIlNear extends QryopIl {
 						+ this.toString());
 			else if ((i > 0)
 					&& (!ptrs.get(i).invList.field
-							.equals(ptrs.get(0).invList.field)))
+							.equals(ptrs.get(0).invList.field))) {
 				QryEval.fatalError("Error:  Arguments must be in the same field:  "
 						+ this.toString());
+			}
 		}
 
 		return true;
