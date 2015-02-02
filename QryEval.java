@@ -86,30 +86,18 @@ public class QryEval {
 			System.exit(1);
 		}
 
-		/**
-		 * The index is open. Start evaluating queries. The examples below show
-		 * query trees for two simple queries. These are meant to illustrate how
-		 * query nodes are created and connected. However your software will not
-		 * create queries like this. Your software will use a query parser. See
-		 * parseQuery.
-		 *
-		 * The general pattern is to tokenize the query term (so that it gets
-		 * converted to lowercase, stopped, stemmed, etc), create a Term node to
-		 * fetch the inverted list, create a Score node to convert an inverted
-		 * list to a score list, evaluate the query, and print results.
-		 * 
-		 * Modify the software so that you read a query from a file, parse it,
-		 * and form the query tree automatically.
-		 */
-
 		/*
 		 * Open query file
 		 */
 		if (!params.containsKey("queryFilePath")) {
-			System.err.println("Error: Parameters were missing.");
+			System.err
+					.println("Error: Parameters were missing, please specify query file path.");
 			System.exit(1);
 		}
 
+		/*
+		 * Read the queries one by one from the query file path
+		 */
 		List<String> queries = new ArrayList<String>();
 		try {
 			BufferedReader queryReader = new BufferedReader(new FileReader(
@@ -128,6 +116,10 @@ public class QryEval {
 			System.exit(1);
 		}
 
+		/*
+		 * Instantiate the retrieval model according to the given name with java
+		 * reflection.
+		 */
 		RetrievalModel r = null;
 		String retrievalModel = params.get("retrievalAlgorithm");
 		try {
@@ -139,12 +131,19 @@ public class QryEval {
 			System.exit(1);
 		}
 
+		/*
+		 * Evaluate the query and save the result to the given output file
+		 */
 		String outputFile = params.get("trecEvalOutputPath");
 		try {
-			PrintWriter writer = new PrintWriter(new FileWriter(outputFile));
+			BufferedWriter writer = new BufferedWriter(new FileWriter(
+					outputFile));
 			for (String query : queries) {
+				/*
+				 * print the top 100 result for each query
+				 */
 				for (String entry : outputEntry(query, r)) {
-					writer.println(entry);
+					writer.write(entry + '\n');
 				}
 			}
 			writer.close();
@@ -153,18 +152,12 @@ public class QryEval {
 			System.exit(1);
 		}
 
-		/*
-		 * Create the trec_eval output. Your code should write to the file
-		 * specified in the parameter file, and it should write the results that
-		 * you retrieved above. This code just allows the testing infrastructure
-		 * to work on QryEval.
-		 */
-
 		// Later HW assignments will use more RAM, so you want to be aware
 		// of how much memory your program uses.
 
 		printMemoryUsage(false);
 
+		// print out the total time used for running the program
 		System.out.println("time: " + (System.currentTimeMillis() - start)
 				/ 1000);
 
@@ -271,9 +264,10 @@ public class QryEval {
 				currentOp = new QryopSlOr();
 				stack.push(currentOp);
 			} else if (token.startsWith("#near") || token.startsWith("#NEAR")) {
+				// instantiate the near operator with the given range
 				String[] temp = token.split("/");
 				if (temp.length < 2) {
-					System.err.println("Wrong operator usage");
+					System.err.println("Wrong near operator usage");
 					return null;
 				}
 				currentOp = new QryopIlNear(Integer.parseInt(temp[1]));
@@ -301,7 +295,9 @@ public class QryEval {
 				// NOTE: You should do lexical processing of the token before
 				// creating the query term, and you should check to see whether
 				// the token specifies a particular field (e.g., apple.title).
+
 				int index = token.lastIndexOf('.');
+				// if the query specifies a filed
 				if (index != -1 && token.substring(index + 1).length() > 0) {
 					String field = token.substring(index + 1);
 					token = token.substring(0, index);
@@ -332,16 +328,41 @@ public class QryEval {
 		return currentOp;
 	}
 
+	/**
+	 * This method takes in a query, evaluate the query result and output an
+	 * entry conforming to trec_eval format
+	 * 
+	 * @param query
+	 * @param r
+	 * @return
+	 */
 	public static List<String> outputEntry(String query, RetrievalModel r) {
 		List<String> entries = new ArrayList<String>();
 
+		/*
+		 * Separte a query with its id
+		 */
 		String[] s = query.split(":");
 		try {
+			// evaluate the query
 			QryResult result = parseQuery(s[1]).evaluate(r);
-			Collections
-					.sort(result.docScores.scores, new ScoreListComparator());
+			/*
+			 * Build a max heap for retrieving the 100 largest entries
+			 */
+			PriorityQueue<ScoreList.ScoreListEntry> heap = new PriorityQueue<ScoreList.ScoreListEntry>(
+					result.docScores.scores.size(), new ScoreListComparator());
+			List<ScoreList.ScoreListEntry> list = new ArrayList<ScoreList.ScoreListEntry>(
+					100);
+			heap.addAll(result.docScores.scores);
+			for (int i = 0; i < Math.min(result.docScores.scores.size(), 100); i++) {
+				list.add(heap.poll());
+			}
 
-			if (result.docScores.scores.size() == 0) {
+			/*
+			 * Format the output string for regular outputs as well as for query
+			 * where there is no match
+			 */
+			if (list.size() == 0) {
 				StringBuilder entry = new StringBuilder();
 				entry.append(s[0]);
 				entry.append(' ');
@@ -353,17 +374,20 @@ public class QryEval {
 
 				entries.add(entry.toString());
 			}
-			for (int i = 0; i < Math.min(result.docScores.scores.size(), 100); i++) {
+			/*
+			 * Format the output entry
+			 */
+			for (int i = 0; i < Math.min(list.size(), 100); i++) {
 				StringBuilder entry = new StringBuilder();
 				entry.append(s[0]);
 				entry.append(' ');
 				entry.append("Q0");
 				entry.append(' ');
-				entry.append(getExternalDocid(result.docScores.getDocid(i)));
+				entry.append(getExternalDocid(list.get(i).docid));
 				entry.append(' ');
 				entry.append(String.valueOf(i + 1));
 				entry.append(' ');
-				entry.append(result.docScores.getDocidScore(i));
+				entry.append(list.get(i).score);
 				entry.append(' ');
 				entry.append("Run_1");
 
@@ -460,15 +484,24 @@ public class QryEval {
 		return tokens.toArray(new String[tokens.size()]);
 	}
 
+	/**
+	 * A helper class for sorting the output according to the score and then
+	 * external doc id
+	 * 
+	 * @author siyuwei
+	 *
+	 */
 	public static class ScoreListComparator implements
 			Comparator<ScoreList.ScoreListEntry> {
 
 		@Override
 		public int compare(ScoreList.ScoreListEntry arg0,
 				ScoreList.ScoreListEntry arg1) {
+			// if the score is different, sort the entries by score
 			if (arg0.score - arg1.score != 0) {
 				return (int) (arg1.score - arg0.score);
 			} else {
+				// sort the entry by external id when score ties
 				try {
 					return getExternalDocid(arg0.docid).compareTo(
 							getExternalDocid(arg1.docid));
