@@ -1,12 +1,9 @@
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -32,12 +29,18 @@ public class QryopSlOr extends QryopSl {
 
 	@Override
 	public QryResult evaluate(RetrievalModel r) throws IOException {
-		
-		return evaluateHashMap(r);
-
-		
+		return evaluateLinear(r);
 	}
-	
+
+	/**
+	 * Evaluate the or operator by finding the smallest current doc id, same as
+	 * the approach for "#Syn".
+	 * 
+	 * @param r
+	 *            retrieval model
+	 * @return
+	 * @throws IOException
+	 */
 	public QryResult evaluateLinear(RetrievalModel r) throws IOException {
 		super.allocArgPtrs(r);
 		QryResult result = new QryResult();
@@ -84,27 +87,42 @@ public class QryopSlOr extends QryopSl {
 
 		return result;
 	}
-	
+
+	/**
+	 * Evaluate the or operator by using hash map and then sort the output
+	 * 
+	 * @param r
+	 *            retrieval model
+	 * @return the result
+	 * @throws IOException
+	 */
 	public QryResult evaluateHashMap(RetrievalModel r) throws IOException {
 
 		super.allocArgPtrs(r);
 		QryResult result = new QryResult();
 
-		Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+		/*
+		 * Build the map, every entry maps from a doc id to its score
+		 */
+		Map<Integer, Integer> idToScore = new HashMap<Integer, Integer>();
 		for (ArgPtr ptr : this.argPtrs) {
 			for (ScoreList.ScoreListEntry entry : ptr.scoreList.scores) {
-				Integer score = map.get(entry.docid);
+				Integer score = idToScore.get(entry.docid);
 				if (score != null) {
-					map.put(entry.docid, Math.max(score, (int) entry.score));
+					idToScore.put(entry.docid,
+							Math.max(score, (int) entry.score));
 				} else {
-					map.put(entry.docid, (int) entry.score);
+					idToScore.put(entry.docid, (int) entry.score);
 				}
 			}
 		}
 
+		/*
+		 * Get
+		 */
 		List<Entry> list = new ArrayList<Entry>();
-		for (int i : map.keySet()) {
-			list.add(new Entry(i, map.get(i)));
+		for (int i : idToScore.keySet()) {
+			list.add(new Entry(i, idToScore.get(i)));
 		}
 
 		Collections.sort(list);
@@ -118,7 +136,15 @@ public class QryopSlOr extends QryopSl {
 
 		return result;
 	}
-	
+
+	/**
+	 * Evaluate the or operator with a tree map approach
+	 * 
+	 * @param r
+	 *            the retrieval model
+	 * @return the result
+	 * @throws IOException
+	 */
 	public QryResult evaluateTreeMap(RetrievalModel r) throws IOException {
 
 		super.allocArgPtrs(r);
@@ -146,6 +172,9 @@ public class QryopSlOr extends QryopSl {
 			}
 		}
 
+		/*
+		 * Adding all the entries to the result according to the order of doc id
+		 */
 		for (Map.Entry<Integer, Integer> e : idToScore.entrySet()) {
 			result.docScores.add(e.getKey(), e.getValue());
 		}
@@ -155,6 +184,12 @@ public class QryopSlOr extends QryopSl {
 		return result;
 	}
 
+	/**
+	 * A helper class used for sorting in the hash map approach
+	 * 
+	 * @author siyuwei
+	 *
+	 */
 	private static class Entry implements Comparable<Entry> {
 
 		public Entry(int key, int value) {

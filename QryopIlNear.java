@@ -29,7 +29,8 @@ public class QryopIlNear extends QryopIl {
 		ArgPtr first = argPtrs.get(0);
 
 		/*
-		 * Find the same doc id as "#and"
+		 * Find the terms with the same doc id using the same algorithm as the
+		 * provided approach for "#and".
 		 */
 		out: for (; first.nextDoc < first.invList.postings.size(); first.nextDoc++) {
 			int docId = first.invList.getDocid(first.nextDoc);
@@ -54,6 +55,10 @@ public class QryopIlNear extends QryopIl {
 			}
 			List<Integer> locations = new ArrayList<Integer>();
 			// all doc ids matched, look for #NEAR match
+
+			/*
+			 * Evaluate "near" operator based on the greedy algorithm approach
+			 */
 			nearEvaluate: for (int firstPosition : first.invList.postings
 					.get(first.nextDoc).positions) {
 				int last = firstPosition;
@@ -61,9 +66,16 @@ public class QryopIlNear extends QryopIl {
 					InvList.DocPosting posting = argPtrs.get(j).invList.postings
 							.get(argPtrs.get(j).nextDoc);
 					while (true) {
+						/*
+						 * end outer loop, if no more available positions for
+						 * evaluation
+						 */
 						if (posting.position >= posting.positions.size()) {
 							break nearEvaluate;
 						}
+						/*
+						 * position < last position, get to evaluate next
+						 */
 						if (posting.positions.get(posting.position) < last) {
 							posting.position++;
 						} else if (posting.positions.get(posting.position)
@@ -77,7 +89,7 @@ public class QryopIlNear extends QryopIl {
 					}
 				}
 				/*
-				 * A near is successfully matched
+				 * A near operator is successfully matched
 				 */
 				locations.add(last);
 			}

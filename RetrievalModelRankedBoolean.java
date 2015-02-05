@@ -6,15 +6,29 @@
  */
 public class RetrievalModelRankedBoolean extends RetrievalModel {
 
-	@Override
+	/**
+	 * Set a retrieval model parameter.
+	 * 
+	 * @param parameterName
+	 * @param parametervalue
+	 * @return Always false because this retrieval model has no parameters.
+	 */
 	public boolean setParameter(String parameterName, double value) {
-		// TODO Auto-generated method stub
+		System.err.println("Error: Unknown parameter name for retrieval model "
+				+ "UnrankedBoolean: " + parameterName);
 		return false;
 	}
 
-	@Override
+	/**
+	 * Set a retrieval model parameter.
+	 * 
+	 * @param parameterName
+	 * @param parametervalue
+	 * @return Always false because this retrieval model has no parameters.
+	 */
 	public boolean setParameter(String parameterName, String value) {
-		// TODO Auto-generated method stub
+		System.err.println("Error: Unknown parameter name for retrieval model "
+				+ "UnrankedBoolean: " + parameterName);
 		return false;
 	}
 

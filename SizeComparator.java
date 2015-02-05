@@ -1,5 +1,12 @@
 import java.util.Comparator;
 
+/**
+ * A utility class for sorting the ArgPtr by the size of the inverted or score
+ * lists.
+ * 
+ * @author siyuwei
+ *
+ */
 public class SizeComparator implements Comparator<Qryop.ArgPtr> {
 
 	@Override

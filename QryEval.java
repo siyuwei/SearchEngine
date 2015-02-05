@@ -44,6 +44,8 @@ public class QryEval {
 		analyzer.setStemmer(EnglishAnalyzerConfigurable.StemmerType.KSTEM);
 	}
 
+	private static final int NUM_DOCS = 100;
+
 	/**
 	 * @param args
 	 *            The only argument is the path to the parameter file.
@@ -349,14 +351,8 @@ public class QryEval {
 			/*
 			 * Build a max heap for retrieving the 100 largest entries
 			 */
-			PriorityQueue<ScoreList.ScoreListEntry> heap = new PriorityQueue<ScoreList.ScoreListEntry>(
-					result.docScores.scores.size(), new ScoreListComparator());
-			List<ScoreList.ScoreListEntry> list = new ArrayList<ScoreList.ScoreListEntry>(
-					100);
-			heap.addAll(result.docScores.scores);
-			for (int i = 0; i < Math.min(result.docScores.scores.size(), 100); i++) {
-				list.add(heap.poll());
-			}
+
+			List<ScoreList.ScoreListEntry> list = retrieveLargestMinHeap(result.docScores.scores);
 
 			/*
 			 * Format the output string for regular outputs as well as for query
@@ -427,6 +423,87 @@ public class QryEval {
 	}
 
 	/**
+	 * An approach for retrieving the largest k elements with a max heap
+	 * 
+	 * @param input
+	 * @return
+	 */
+	public static List<ScoreList.ScoreListEntry> retrieveLargestMaxHeap(
+			List<ScoreList.ScoreListEntry> input) {
+
+		PriorityQueue<ScoreList.ScoreListEntry> heap = new PriorityQueue<ScoreList.ScoreListEntry>(
+				input.size(), new Comparator<ScoreList.ScoreListEntry>() {
+
+					@Override
+					public int compare(ScoreList.ScoreListEntry o1,
+							ScoreList.ScoreListEntry o2) {
+						return compareScoreList(o1, o2);
+					}
+
+				});
+		List<ScoreList.ScoreListEntry> list = new ArrayList<ScoreList.ScoreListEntry>(
+				NUM_DOCS);
+		heap.addAll(input);
+		for (int i = 0; i < Math.min(input.size(), NUM_DOCS); i++) {
+			list.add(heap.poll());
+		}
+
+		return list;
+	}
+
+	/**
+	 * An approach for retrieving the largest k elements with a min heap
+	 * 
+	 * @param input
+	 * @return
+	 */
+	public static List<ScoreList.ScoreListEntry> retrieveLargestMinHeap(
+			List<ScoreList.ScoreListEntry> input) {
+
+		/*
+		 * Create the min heap
+		 */
+		PriorityQueue<ScoreList.ScoreListEntry> heap = new PriorityQueue<ScoreList.ScoreListEntry>(
+				NUM_DOCS, new Comparator<ScoreList.ScoreListEntry>() {
+
+					@Override
+					public int compare(ScoreList.ScoreListEntry o1,
+							ScoreList.ScoreListEntry o2) {
+						return compareScoreList(o2, o1);
+					}
+
+				});
+		// create a list for storing the final result
+		List<ScoreList.ScoreListEntry> result = new ArrayList<ScoreList.ScoreListEntry>();
+
+		/*
+		 * For each element, if it's larger than the largest than the smallest
+		 * element in the heap, add it to the min heap
+		 */
+		for (ScoreList.ScoreListEntry entry : input) {
+			if (heap.size() < NUM_DOCS) {
+				heap.add(entry);
+			} else {
+				if (compareScoreList(entry, heap.peek()) < 0) {
+					heap.poll();
+					heap.add(entry);
+				}
+			}
+		}
+		/*
+		 * Add the largest NUM_DOCS elements to the list
+		 */
+		while (heap.size() > 0) {
+			result.add(heap.poll());
+		}
+
+		Collections.reverse(result);
+		
+		return result;
+
+	}
+
+	/**
 	 * Print the query results.
 	 * 
 	 * THIS IS NOT THE CORRECT OUTPUT FORMAT. YOU MUST CHANGE THIS METHOD SO
@@ -485,31 +562,27 @@ public class QryEval {
 	}
 
 	/**
-	 * A helper class for sorting the output according to the score and then
-	 * external doc id
+	 * A helper method for comparing two score list entry for retrieving the
+	 * largest k ones
 	 * 
-	 * @author siyuwei
-	 *
+	 * @param arg0
+	 * @param arg1
+	 * @return
 	 */
-	public static class ScoreListComparator implements
-			Comparator<ScoreList.ScoreListEntry> {
-
-		@Override
-		public int compare(ScoreList.ScoreListEntry arg0,
-				ScoreList.ScoreListEntry arg1) {
-			// if the score is different, sort the entries by score
-			if (arg0.score - arg1.score != 0) {
-				return (int) (arg1.score - arg0.score);
-			} else {
-				// sort the entry by external id when score ties
-				try {
-					return getExternalDocid(arg0.docid).compareTo(
-							getExternalDocid(arg1.docid));
-				} catch (IOException e) {
-					return 0;
-				}
+	public static int compareScoreList(ScoreList.ScoreListEntry arg0,
+			ScoreList.ScoreListEntry arg1) {
+		// if the score is different, sort the entries by score
+		if (arg0.score - arg1.score != 0) {
+			return (int) (arg1.score - arg0.score);
+		} else {
+			// sort the entry by external id when score ties
+			try {
+				return getExternalDocid(arg0.docid).compareTo(
+						getExternalDocid(arg1.docid));
+			} catch (IOException e) {
+				return 0;
 			}
 		}
-
 	}
+
 }
